@@ -5,193 +5,212 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Stieg</title>
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #fff;
-      overflow: hidden;
-    }
-    .topbar{
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 18px;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  z-index: 10;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-}
+    html, body { margin: 0; height: 100%; background: #fff; }
 
-.brand{
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 12px;
-  opacity: 0.85;
-}
-
-.nav a{
-  text-decoration: none;
-  color: #000;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.65;
-  margin-left: 14px;
-}
-
-.nav a:hover{ opacity: 0.95; }
-.nav a.active{ opacity: 0.95; }
-
-/* Keep canvas full-bleed behind the header */
-canvas{
-  position: fixed;
-  top: 0; left: 0;
-}
-
+    /* Canvas as background */
     canvas {
-      display: block;
+      position: fixed;
+      inset: 0;
       width: 100vw;
       height: 100vh;
+      display: block;
       background: #fff;
+      z-index: 0;
+    }
+
+    /* Foreground layout matches Work/Contact */
+    .topbar{
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      z-index: 10;
+    }
+
+    .bar-inner{
+      max-width: 760px;
+      margin: 0 auto;
+      height: 56px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    .brand{
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+      opacity: 0.85;
+      user-select: none;
+    }
+
+    .nav a{
+      text-decoration: none;
+      color: #000;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.65;
+      margin-left: 14px;
+    }
+    .nav a:hover, .nav a.active { opacity: 0.95; }
+
+    main{
+      position: relative;
+      z-index: 5;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 96px 18px 48px;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      line-height: 1.6;
+      pointer-events: none; /* keeps the canvas feel; links will be re-enabled below */
+    }
+
+    /* Make nav clickable even though main is pointer-events none */
+    .topbar, .topbar * { pointer-events: auto; }
+
+    h1{
+      font-size: 14px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin: 0 0 18px;
+    }
+
+    .note{
+      opacity: .65;
+      font-size: 12px;
+      max-width: 46ch;
     }
   </style>
 </head>
 <body>
-    <header class="topbar">
-    <div class="brand">Stieg</div>
-    <nav class="nav">
-      <a class="active" href="./">Home</a>
-      <a href="./work.html">Work</a>
-      <a href="./contact.html">Contact</a>
-    </nav>
+
+  <header class="topbar">
+    <div class="bar-inner">
+      <div class="brand">Stieg</div>
+      <nav class="nav">
+        <a class="active" href="./">Home</a>
+        <a href="./work.html">Work</a>
+        <a href="./contact.html">Contact</a>
+      </nav>
+    </div>
   </header>
-<canvas id="c"></canvas>
 
-<script>
-(() => {
-  const canvas = document.getElementById("c");
-  const ctx = canvas.getContext("2d", { alpha: false }); // opaque white background
+  <canvas id="c" aria-label="Triangle trace animation"></canvas>
 
-  // ----- Tunables -----
-  const SPEED_PX_PER_SEC = 320;   // point speed along edges
-  const FADE_ALPHA = 0.03;        // 0..1 (higher = faster fade)
-  const LINE_WIDTH = 3.0;         // trace thickness
-  const DOT_RADIUS = 2.5;         // moving point radius
+  <main>
+    <h1>Stieg</h1>
+    <div class="note">
+      <!-- Optional: keep this empty if you want pure minimalism -->
+      <!-- A single line here can work, or nothing at all. -->
+    </div>
+  </main>
 
-  // Geometry
-  let tri = null;
-  let perimeter = 0;
+  <script>
+  (() => {
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d", { alpha: false });
 
-  // Animation state
-  let dist = 0;        // distance traveled along perimeter [0, perimeter)
-  let lastPos = null;  // previous point position for drawing segments
-  let lastT = null;
+    const SPEED_PX_PER_SEC = 320;
+    const FADE_ALPHA = 0.03;
+    const LINE_WIDTH = 3.0;
+    const DOT_RADIUS = 2.5;
 
-  function resize() {
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    canvas.width = Math.floor(window.innerWidth * dpr);
-    canvas.height = Math.floor(window.innerHeight * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+    let tri = null;
+    let perimeter = 0;
+    let dist = 0;
+    let lastPos = null;
+    let lastT = null;
 
-    // Recompute triangle in the new viewport
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const size = Math.min(w, h) * 0.55;
-    const cx = w * 0.5;
-    const cy = h * 0.5;
+    function resize() {
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Equilateral-ish triangle, slightly lifted
-    const p1 = { x: cx,            y: cy - size * 0.62 };
-    const p2 = { x: cx - size*0.7, y: cy + size * 0.55 };
-    const p3 = { x: cx + size*0.7, y: cy + size * 0.55 };
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const size = Math.min(w, h) * 0.55;
+      const cx = w * 0.5;
+      const cy = h * 0.5;
 
-    tri = [p1, p2, p3];
+      const p1 = { x: cx,            y: cy - size * 0.62 };
+      const p2 = { x: cx - size*0.7, y: cy + size * 0.55 };
+      const p3 = { x: cx + size*0.7, y: cy + size * 0.55 };
 
-    perimeter = 0;
-    for (let i = 0; i < 3; i++) {
-      const a = tri[i];
-      const b = tri[(i + 1) % 3];
-      perimeter += Math.hypot(b.x - a.x, b.y - a.y);
-    }
+      tri = [p1, p2, p3];
 
-    // Hard-clear to white on resize
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, w, h);
-
-    lastPos = null;
-  }
-
-  function pointOnTriangle(d) {
-    // Map distance d along perimeter to a point on the edges
-    let remaining = d % perimeter;
-
-    for (let i = 0; i < 3; i++) {
-      const a = tri[i];
-      const b = tri[(i + 1) % 3];
-      const edgeLen = Math.hypot(b.x - a.x, b.y - a.y);
-      if (remaining <= edgeLen) {
-        const t = remaining / edgeLen;
-        return {
-          x: a.x + (b.x - a.x) * t,
-          y: a.y + (b.y - a.y) * t
-        };
+      perimeter = 0;
+      for (let i = 0; i < 3; i++) {
+        const a = tri[i];
+        const b = tri[(i + 1) % 3];
+        perimeter += Math.hypot(b.x - a.x, b.y - a.y);
       }
-      remaining -= edgeLen;
+
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      lastPos = null;
     }
-    return tri[0];
-  }
 
-  function drawFrame(t) {
-    if (lastT == null) lastT = t;
-    const dt = Math.min(0.05, (t - lastT) / 1000); // cap dt
-    lastT = t;
+    function pointOnTriangle(d) {
+      let remaining = d % perimeter;
+      for (let i = 0; i < 3; i++) {
+        const a = tri[i];
+        const b = tri[(i + 1) % 3];
+        const edgeLen = Math.hypot(b.x - a.x, b.y - a.y);
+        if (remaining <= edgeLen) {
+          const t = remaining / edgeLen;
+          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+        }
+        remaining -= edgeLen;
+      }
+      return tri[0];
+    }
 
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    function drawFrame(t) {
+      if (lastT == null) lastT = t;
+      const dt = Math.min(0.05, (t - lastT) / 1000);
+      lastT = t;
 
-    // Fade previous trail by painting a translucent white rectangle
-    ctx.save();
-    ctx.globalAlpha = FADE_ALPHA;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
 
-    // Advance along perimeter
-    dist = (dist + SPEED_PX_PER_SEC * dt) % perimeter;
+      ctx.save();
+      ctx.globalAlpha = FADE_ALPHA;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
 
-    const pos = pointOnTriangle(dist);
+      dist = (dist + SPEED_PX_PER_SEC * dt) % perimeter;
+      const pos = pointOnTriangle(dist);
 
-    // Draw segment of trace
-    if (lastPos) {
-      ctx.lineWidth = LINE_WIDTH;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#000";
+      if (lastPos) {
+        ctx.lineWidth = LINE_WIDTH;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#000";
+        ctx.beginPath();
+        ctx.moveTo(lastPos.x, lastPos.y);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+      }
+      lastPos = pos;
+
+      ctx.fillStyle = "#000";
       ctx.beginPath();
-      ctx.moveTo(lastPos.x, lastPos.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+
+      requestAnimationFrame(drawFrame);
     }
-    lastPos = pos;
 
-    // Draw the moving point on top
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
-
+    window.addEventListener("resize", resize, { passive: true });
+    resize();
     requestAnimationFrame(drawFrame);
-  }
-
-  window.addEventListener("resize", resize, { passive: true });
-  resize();
-  requestAnimationFrame(drawFrame);
-})();
-</script>
+  })();
+  </script>
 </body>
 </html>
