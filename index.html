@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Triangle Trace</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #fff;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d", { alpha: false }); // opaque white background
+
+  // ----- Tunables -----
+  const SPEED_PX_PER_SEC = 320;   // point speed along edges
+  const FADE_ALPHA = 0.06;        // 0..1 (higher = faster fade)
+  const LINE_WIDTH = 2.0;         // trace thickness
+  const DOT_RADIUS = 3.5;         // moving point radius
+
+  // Geometry
+  let tri = null;
+  let perimeter = 0;
+
+  // Animation state
+  let dist = 0;        // distance traveled along perimeter [0, perimeter)
+  let lastPos = null;  // previous point position for drawing segments
+  let lastT = null;
+
+  function resize() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+
+    // Recompute triangle in the new viewport
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const size = Math.min(w, h) * 0.55;
+    const cx = w * 0.5;
+    const cy = h * 0.5;
+
+    // Equilateral-ish triangle, slightly lifted
+    const p1 = { x: cx,            y: cy - size * 0.62 };
+    const p2 = { x: cx - size*0.7, y: cy + size * 0.55 };
+    const p3 = { x: cx + size*0.7, y: cy + size * 0.55 };
+
+    tri = [p1, p2, p3];
+
+    perimeter = 0;
+    for (let i = 0; i < 3; i++) {
+      const a = tri[i];
+      const b = tri[(i + 1) % 3];
+      perimeter += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+
+    // Hard-clear to white on resize
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+
+    lastPos = null;
+  }
+
+  function pointOnTriangle(d) {
+    // Map distance d along perimeter to a point on the edges
+    let remaining = d % perimeter;
+
+    for (let i = 0; i < 3; i++) {
+      const a = tri[i];
+      const b = tri[(i + 1) % 3];
+      const edgeLen = Math.hypot(b.x - a.x, b.y - a.y);
+      if (remaining <= edgeLen) {
+        const t = remaining / edgeLen;
+        return {
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t
+        };
+      }
+      remaining -= edgeLen;
+    }
+    return tri[0];
+  }
+
+  function drawFrame(t) {
+    if (lastT == null) lastT = t;
+    const dt = Math.min(0.05, (t - lastT) / 1000); // cap dt
+    lastT = t;
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // Fade previous trail by painting a translucent white rectangle
+    ctx.save();
+    ctx.globalAlpha = FADE_ALPHA;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    // Advance along perimeter
+    dist = (dist + SPEED_PX_PER_SEC * dt) % perimeter;
+
+    const pos = pointOnTriangle(dist);
+
+    // Draw segment of trace
+    if (lastPos) {
+      ctx.lineWidth = LINE_WIDTH;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#000";
+      ctx.beginPath();
+      ctx.moveTo(lastPos.x, lastPos.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
+    lastPos = pos;
+
+    // Draw the moving point on top
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    requestAnimationFrame(drawFrame);
+  }
+
+  window.addEventListener("resize", resize, { passive: true });
+  resize();
+  requestAnimationFrame(drawFrame);
+})();
+</script>
+</body>
+</html>
