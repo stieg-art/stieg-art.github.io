@@ -11,6 +11,49 @@
       background: #fff;
       overflow: hidden;
     }
+    .topbar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  z-index: 10;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+
+.brand{
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.nav a{
+  text-decoration: none;
+  color: #000;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin-left: 14px;
+}
+
+.nav a:hover{ opacity: 0.95; }
+.nav a.active{ opacity: 0.95; }
+
+/* Keep canvas full-bleed behind the header */
+canvas{
+  position: fixed;
+  top: 0; left: 0;
+}
+
     canvas {
       display: block;
       width: 100vw;
