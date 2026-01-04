@@ -3,7 +3,7 @@ layout: default
 title: Stieg
 ---
 
-Austere line here.
+Art of Stieg.
 
 - Publications
 - Poems
