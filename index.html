@@ -7,8 +7,8 @@
   <style>
     html, body { margin: 0; height: 100%; background: #fff; }
 
-    /* Canvas as background */
-    canvas {
+    /* Canvas background */
+    canvas{
       position: fixed;
       inset: 0;
       width: 100vw;
@@ -18,7 +18,7 @@
       z-index: 0;
     }
 
-    /* Foreground layout matches Work/Contact */
+    /* Match Work/Contact header exactly */
     .topbar{
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -27,6 +27,7 @@
       backdrop-filter: blur(6px);
       border-bottom: 1px solid rgba(0,0,0,0.08);
       z-index: 10;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
 
     .bar-inner{
@@ -37,7 +38,6 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
 
     .brand{
@@ -59,36 +59,12 @@
     }
     .nav a:hover, .nav a.active { opacity: 0.95; }
 
-    main{
-      position: relative;
-      z-index: 5;
-      max-width: 760px;
-      margin: 0 auto;
-      padding: 96px 18px 48px;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      line-height: 1.6;
-      pointer-events: none; /* keeps the canvas feel; links will be re-enabled below */
-    }
-
-    /* Make nav clickable even though main is pointer-events none */
+    /* Nothing else on the home page needs pointer events */
     .topbar, .topbar * { pointer-events: auto; }
-
-    h1{
-      font-size: 14px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin: 0 0 18px;
-    }
-
-    .note{
-      opacity: .65;
-      font-size: 12px;
-      max-width: 46ch;
-    }
   </style>
 </head>
-<body>
 
+<body>
   <header class="topbar">
     <div class="bar-inner">
       <div class="brand">Stieg</div>
@@ -102,29 +78,32 @@
 
   <canvas id="c" aria-label="Triangle trace animation"></canvas>
 
-  <main>
-    <h1>Stieg</h1>
-    <div class="note">
-      <!-- Optional: keep this empty if you want pure minimalism -->
-      <!-- A single line here can work, or nothing at all. -->
-    </div>
-  </main>
-
   <script>
   (() => {
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false });
 
+    // ----- Tunables -----
     const SPEED_PX_PER_SEC = 320;
     const FADE_ALPHA = 0.03;
     const LINE_WIDTH = 3.0;
     const DOT_RADIUS = 2.5;
 
-    let tri = null;
+    const ROTATE_DEG_PER_LAP = 15;     // rotate 15 degrees after each full perimeter lap
+    const TITLE_TEXT = "Stieg";
+    const TITLE_SIZE_PX = 44;          // title size inside canvas
+    const TITLE_ALPHA = 0.18;          // subtlety of the title text
+
+    // Geometry
+    let tri = null;          // base (unrotated) triangle vertices
     let perimeter = 0;
-    let dist = 0;
+    let center = { x: 0, y: 0 };
+
+    // Animation state
+    let totalDist = 0;       // keep growing; use modulo for position
     let lastPos = null;
     let lastT = null;
+    let lastLap = 0;
 
     function resize() {
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -135,13 +114,13 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
       const size = Math.min(w, h) * 0.55;
-      const cx = w * 0.5;
-      const cy = h * 0.5;
 
-      const p1 = { x: cx,            y: cy - size * 0.62 };
-      const p2 = { x: cx - size*0.7, y: cy + size * 0.55 };
-      const p3 = { x: cx + size*0.7, y: cy + size * 0.55 };
+      center = { x: w * 0.5, y: h * 0.5 };
 
+      // Base triangle (unrotated)
+      const p1 = { x: center.x,            y: center.y - size * 0.62 };
+      const p2 = { x: center.x - size*0.7, y: center.y + size * 0.55 };
+      const p3 = { x: center.x + size*0.7, y: center.y + size * 0.55 };
       tri = [p1, p2, p3];
 
       perimeter = 0;
@@ -151,8 +130,10 @@
         perimeter += Math.hypot(b.x - a.x, b.y - a.y);
       }
 
+      // Clear on resize
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, w, h);
+
       lastPos = null;
     }
 
@@ -164,11 +145,36 @@
         const edgeLen = Math.hypot(b.x - a.x, b.y - a.y);
         if (remaining <= edgeLen) {
           const t = remaining / edgeLen;
-          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          return {
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t
+          };
         }
         remaining -= edgeLen;
       }
       return tri[0];
+    }
+
+    function rotatePoint(p, angleRad) {
+      const dx = p.x - center.x;
+      const dy = p.y - center.y;
+      const c = Math.cos(angleRad);
+      const s = Math.sin(angleRad);
+      return {
+        x: center.x + dx * c - dy * s,
+        y: center.y + dx * s + dy * c
+      };
+    }
+
+    function drawTitle() {
+      ctx.save();
+      ctx.globalAlpha = TITLE_ALPHA;
+      ctx.fillStyle = "#000";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `${TITLE_SIZE_PX}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+      ctx.fillText(TITLE_TEXT, center.x, center.y);
+      ctx.restore();
     }
 
     function drawFrame(t) {
@@ -179,15 +185,34 @@
       const w = window.innerWidth;
       const h = window.innerHeight;
 
+      // Fade trail
       ctx.save();
       ctx.globalAlpha = FADE_ALPHA;
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
 
-      dist = (dist + SPEED_PX_PER_SEC * dt) % perimeter;
-      const pos = pointOnTriangle(dist);
+      // Advance
+      totalDist += SPEED_PX_PER_SEC * dt;
 
+      // Determine lap count (how many full perimeters completed)
+      const lap = Math.floor(totalDist / perimeter);
+      const d = totalDist % perimeter;
+
+      // Rotate by 15 degrees per lap
+      const angleRad = (lap * ROTATE_DEG_PER_LAP) * (Math.PI / 180);
+
+      // If lap changed, reset lastPos to avoid a long connecting stroke
+      if (lap !== lastLap) {
+        lastLap = lap;
+        lastPos = null;
+      }
+
+      // Get point on base triangle and rotate it around center
+      const basePos = pointOnTriangle(d);
+      const pos = rotatePoint(basePos, angleRad);
+
+      // Trace
       if (lastPos) {
         ctx.lineWidth = LINE_WIDTH;
         ctx.lineCap = "round";
@@ -199,10 +224,14 @@
       }
       lastPos = pos;
 
+      // Moving point
       ctx.fillStyle = "#000";
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
+
+      // Center title (draw last so it sits on top)
+      drawTitle();
 
       requestAnimationFrame(drawFrame);
     }
