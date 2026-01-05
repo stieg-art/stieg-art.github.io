@@ -18,62 +18,33 @@
       z-index: 0;
     }
 
-    /* Match Work/Contact header exactly */
+    /* EXACTLY like work/contact */
     .topbar{
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 56px;
-      background: rgba(255,255,255,0.92);
+      position: fixed; top:0; left:0; right:0; height:56px;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 18px; background: rgba(255,255,255,0.92);
       backdrop-filter: blur(6px);
       border-bottom: 1px solid rgba(0,0,0,0.08);
-      z-index: 10;
+      z-index:10;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
-
-    .bar-inner{
-      max-width: 760px;
-      margin: 0 auto;
-      height: 56px;
-      padding: 0 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .brand{
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      font-size: 12px;
-      opacity: 0.85;
-      user-select: none;
-    }
-
+    .brand{ letter-spacing:.08em; text-transform:uppercase; font-size:12px; opacity:.85; user-select:none; }
     .nav a{
-      text-decoration: none;
-      color: #000;
-      font-size: 12px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      opacity: 0.65;
-      margin-left: 14px;
+      text-decoration:none; color:#000; font-size:12px;
+      letter-spacing:.06em; text-transform:uppercase; opacity:.65; margin-left:14px;
     }
-    .nav a:hover, .nav a.active { opacity: 0.95; }
-
-    /* Nothing else on the home page needs pointer events */
-    .topbar, .topbar * { pointer-events: auto; }
+    .nav a:hover, .nav a.active { opacity:.95; }
   </style>
 </head>
 
 <body>
   <header class="topbar">
-    <div class="bar-inner">
-      <div class="brand">Stieg</div>
-      <nav class="nav">
-        <a class="active" href="./">Home</a>
-        <a href="./work.html">Work</a>
-        <a href="./contact.html">Contact</a>
-      </nav>
-    </div>
+    <div class="brand">Stieg</div>
+    <nav class="nav">
+      <a class="active" href="./">Home</a>
+      <a href="./work.html">Work</a>
+      <a href="./contact.html">Contact</a>
+    </nav>
   </header>
 
   <canvas id="c" aria-label="Triangle trace animation"></canvas>
@@ -85,31 +56,30 @@
 
     // ----- Tunables -----
     const SPEED_PX_PER_SEC = 320;
-    const FADE_ALPHA = 0.03;
-    const LINE_WIDTH = 3.0;
-    const DOT_RADIUS = 2.5;
+    const FADE_ALPHA = 0.035;
+    const LINE_WIDTH = 2.4;
 
-    const ROTATE_DEG_PER_LAP = 30;     // rotate 15 degrees after each full perimeter lap
+    const ROTATE_DEG_PER_LAP = 30;
     const TITLE_TEXT = "STIEG";
-    const TITLE_SIZE_PX = 44;          // title size inside canvas
-    const TITLE_ALPHA = 0.18;          // subtlety of the title text
-    const HEADER_H = 56;             // must match CSS header height
-    const SIZE_SCALE = 0.46;         // smaller than 0.55
-    const CENTER_Y_OFFSET = HEADER_H * 0.35; // push down a bit
-    const DRAW_SUBSTEPS = 2;         // 1–4; higher = smoother but more CPU
+    const TITLE_SIZE_PX = 52;
+    const TITLE_ALPHA = 0.16;
 
-    const GLOW_BLUR = 10;            // “gaussian-ish” blur
-    const GLOW_ALPHA = 0.85;         // line opacity (blur makes it look lighter)
-    const DRAW_DOT = false;          // turn off dot to avoid “dotted” feel
+    const HEADER_H = 56;
+    const SIZE_SCALE = 0.44;
+    const CENTER_Y_OFFSET = HEADER_H * 0.45;
 
+    const DRAW_SUBSTEPS = 3;
+
+    const GLOW_BLUR = 12;
+    const GLOW_ALPHA = 0.85;
 
     // Geometry
-    let tri = null;          // base (unrotated) triangle vertices
+    let tri = null;
     let perimeter = 0;
     let center = { x: 0, y: 0 };
 
     // Animation state
-    let totalDist = 0;       // keep growing; use modulo for position
+    let totalDist = 0;
     let lastPos = null;
     let lastT = null;
     let lastLap = 0;
@@ -122,13 +92,10 @@
 
       const w = window.innerWidth;
       const h = window.innerHeight;
+
       const size = Math.min(w, h) * SIZE_SCALE;
       center = { x: w * 0.5, y: h * 0.5 + CENTER_Y_OFFSET };
 
-
-      center = { x: w * 0.5, y: h * 0.5 };
-
-      // Base triangle (unrotated)
       const p1 = { x: center.x,            y: center.y - size * 0.62 };
       const p2 = { x: center.x - size*0.7, y: center.y + size * 0.55 };
       const p3 = { x: center.x + size*0.7, y: center.y + size * 0.55 };
@@ -141,7 +108,6 @@
         perimeter += Math.hypot(b.x - a.x, b.y - a.y);
       }
 
-      // Clear on resize
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, w, h);
 
@@ -156,10 +122,7 @@
         const edgeLen = Math.hypot(b.x - a.x, b.y - a.y);
         if (remaining <= edgeLen) {
           const t = remaining / edgeLen;
-          return {
-            x: a.x + (b.x - a.x) * t,
-            y: a.y + (b.y - a.y) * t
-          };
+          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
         }
         remaining -= edgeLen;
       }
@@ -171,10 +134,7 @@
       const dy = p.y - center.y;
       const c = Math.cos(angleRad);
       const s = Math.sin(angleRad);
-      return {
-        x: center.x + dx * c - dy * s,
-        y: center.y + dx * s + dy * c
-      };
+      return { x: center.x + dx * c - dy * s, y: center.y + dx * s + dy * c };
     }
 
     function drawTitle() {
@@ -203,74 +163,41 @@
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
 
-      // Advance
-const stepDt = dt / DRAW_SUBSTEPS;
+      const stepDt = dt / DRAW_SUBSTEPS;
 
-for (let s = 0; s < DRAW_SUBSTEPS; s++) {
-  totalDist += SPEED_PX_PER_SEC * stepDt;
+      for (let s = 0; s < DRAW_SUBSTEPS; s++) {
+        totalDist += SPEED_PX_PER_SEC * stepDt;
 
-  const lap = Math.floor(totalDist / perimeter);
-  const d = totalDist % perimeter;
-  const angleRad = (lap * ROTATE_DEG_PER_LAP) * (Math.PI / 180);
+        const lap = Math.floor(totalDist / perimeter);
+        const d = totalDist % perimeter;
+        const angleRad = (lap * ROTATE_DEG_PER_LAP) * (Math.PI / 180);
 
-  if (lap !== lastLap) {
-    lastLap = lap;
-    lastPos = null;
-  }
+        if (lap !== lastLap) {
+          lastLap = lap;
+          lastPos = null; // avoid a long connecting stroke at the rotation jump
+        }
 
-  const basePos = pointOnTriangle(d);
-  const pos = rotatePoint(basePos, angleRad);
+        const basePos = pointOnTriangle(d);
+        const pos = rotatePoint(basePos, angleRad);
 
-  // draw segment (uses lastPos)
-  if (lastPos) {
-    ctx.save();
-    ctx.lineWidth = LINE_WIDTH;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = `rgba(0,0,0,${GLOW_ALPHA})`;
-    ctx.shadowColor = "rgba(0,0,0,0.55)";
-    ctx.shadowBlur = GLOW_BLUR;
-    ctx.beginPath();
-    ctx.moveTo(lastPos.x, lastPos.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    ctx.restore();
-  }
-  lastPos = pos;
-}
+        if (lastPos) {
+          ctx.save();
+          ctx.lineWidth = LINE_WIDTH;
+          ctx.lineCap = "round";
+          ctx.strokeStyle = `rgba(0,0,0,${GLOW_ALPHA})`;
+          ctx.shadowColor = "rgba(0,0,0,0.55)";
+          ctx.shadowBlur = GLOW_BLUR;
+          ctx.beginPath();
+          ctx.moveTo(lastPos.x, lastPos.y);
+          ctx.lineTo(pos.x, pos.y);
+          ctx.stroke();
+          ctx.restore();
+        }
 
-// Trace
-      
-if (lastPos) {
-  ctx.save();
-  ctx.lineWidth = LINE_WIDTH;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = `rgba(0,0,0,${GLOW_ALPHA})`;
+        lastPos = pos;
+      }
 
-  // soft “gaussian-ish” blur
-  ctx.shadowColor = "rgba(0,0,0,0.55)";
-  ctx.shadowBlur = GLOW_BLUR;
-
-  ctx.beginPath();
-  ctx.moveTo(lastPos.x, lastPos.y);
-  ctx.lineTo(pos.x, pos.y);
-  ctx.stroke();
-  ctx.restore();
-}
-lastPos = pos;
-
-if (DRAW_DOT) {
-  ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = "#000";
-  ctx.beginPath();
-  ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-      
-// Center title (draw last so it sits on top)
       drawTitle();
-
       requestAnimationFrame(drawFrame);
     }
 
