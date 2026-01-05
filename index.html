@@ -89,10 +89,19 @@
     const LINE_WIDTH = 3.0;
     const DOT_RADIUS = 2.5;
 
-    const ROTATE_DEG_PER_LAP = 15;     // rotate 15 degrees after each full perimeter lap
-    const TITLE_TEXT = "Stieg";
+    const ROTATE_DEG_PER_LAP = 30;     // rotate 15 degrees after each full perimeter lap
+    const TITLE_TEXT = "STIEG";
     const TITLE_SIZE_PX = 44;          // title size inside canvas
     const TITLE_ALPHA = 0.18;          // subtlety of the title text
+    const HEADER_H = 56;             // must match CSS header height
+    const SIZE_SCALE = 0.46;         // smaller than 0.55
+    const CENTER_Y_OFFSET = HEADER_H * 0.35; // push down a bit
+    const DRAW_SUBSTEPS = 2;         // 1–4; higher = smoother but more CPU
+
+    const GLOW_BLUR = 10;            // “gaussian-ish” blur
+    const GLOW_ALPHA = 0.85;         // line opacity (blur makes it look lighter)
+    const DRAW_DOT = false;          // turn off dot to avoid “dotted” feel
+
 
     // Geometry
     let tri = null;          // base (unrotated) triangle vertices
@@ -113,7 +122,9 @@
 
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const size = Math.min(w, h) * 0.55;
+      const size = Math.min(w, h) * SIZE_SCALE;
+      center = { x: w * 0.5, y: h * 0.5 + CENTER_Y_OFFSET };
+
 
       center = { x: w * 0.5, y: h * 0.5 };
 
@@ -193,44 +204,71 @@
       ctx.restore();
 
       // Advance
-      totalDist += SPEED_PX_PER_SEC * dt;
+const stepDt = dt / DRAW_SUBSTEPS;
 
-      // Determine lap count (how many full perimeters completed)
-      const lap = Math.floor(totalDist / perimeter);
-      const d = totalDist % perimeter;
+for (let s = 0; s < DRAW_SUBSTEPS; s++) {
+  totalDist += SPEED_PX_PER_SEC * stepDt;
 
-      // Rotate by 15 degrees per lap
-      const angleRad = (lap * ROTATE_DEG_PER_LAP) * (Math.PI / 180);
+  const lap = Math.floor(totalDist / perimeter);
+  const d = totalDist % perimeter;
+  const angleRad = (lap * ROTATE_DEG_PER_LAP) * (Math.PI / 180);
 
-      // If lap changed, reset lastPos to avoid a long connecting stroke
-      if (lap !== lastLap) {
-        lastLap = lap;
-        lastPos = null;
-      }
+  if (lap !== lastLap) {
+    lastLap = lap;
+    lastPos = null;
+  }
 
-      // Get point on base triangle and rotate it around center
-      const basePos = pointOnTriangle(d);
-      const pos = rotatePoint(basePos, angleRad);
+  const basePos = pointOnTriangle(d);
+  const pos = rotatePoint(basePos, angleRad);
 
-      // Trace
-      if (lastPos) {
-        ctx.lineWidth = LINE_WIDTH;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#000";
-        ctx.beginPath();
-        ctx.moveTo(lastPos.x, lastPos.y);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-      }
-      lastPos = pos;
+  // draw segment (uses lastPos)
+  if (lastPos) {
+    ctx.save();
+    ctx.lineWidth = LINE_WIDTH;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = `rgba(0,0,0,${GLOW_ALPHA})`;
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = GLOW_BLUR;
+    ctx.beginPath();
+    ctx.moveTo(lastPos.x, lastPos.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+  lastPos = pos;
+}
 
-      // Moving point
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
+// Trace
+      
+if (lastPos) {
+  ctx.save();
+  ctx.lineWidth = LINE_WIDTH;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = `rgba(0,0,0,${GLOW_ALPHA})`;
 
-      // Center title (draw last so it sits on top)
+  // soft “gaussian-ish” blur
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = GLOW_BLUR;
+
+  ctx.beginPath();
+  ctx.moveTo(lastPos.x, lastPos.y);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  ctx.restore();
+}
+lastPos = pos;
+
+if (DRAW_DOT) {
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+      
+// Center title (draw last so it sits on top)
       drawTitle();
 
       requestAnimationFrame(drawFrame);
